@@ -393,39 +393,34 @@ function CartDrawer({ open, onClose, cart, onCheckout }) {
 
 function CheckoutPage({ cart, onBack, onNav }) {
   const [form, setForm] = useState({ email: "", name: "", address: "", city: "", zip: "", country: "" });
-  const [placed, setPlaced] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
-    /* ------------------------------------------------------------
-       STRIPE INTEGRATION POINT
-       This is a demo checkout — no real payment is processed here.
-       To go live: create a Stripe Checkout Session on your backend
-       with cart.items as line items, then redirect the browser to
-       the session URL Stripe returns. See the setup notes shared
-       alongside this file for exact steps.
-    ------------------------------------------------------------ */
-    setPlaced(true);
-    setTimeout(() => {
-      cart.clear();
-      onNav("home");
-    }, 2500);
-  }
-
-  if (placed) {
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-5">
-        <Check size={40} className="text-white mb-4" />
-        <h2 className="text-2xl text-white uppercase" style={{ fontFamily: "'Oswald', sans-serif" }}>
-          Order placed
-        </h2>
-        <p className="text-neutral-500 text-sm mt-2">This is a demo confirmation — connect Stripe to process real payments.</p>
-      </div>
-    );
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: cart.items, customerEmail: form.email }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url; // send the browser to Stripe's real checkout page
+      } else {
+        setError(data.error || "Something went wrong starting checkout.");
+        setLoading(false);
+      }
+    } catch (err) {
+      setError("Couldn't reach checkout. Please try again.");
+      setLoading(false);
+    }
   }
 
   return (
@@ -457,13 +452,15 @@ function CheckoutPage({ cart, onBack, onNav }) {
               />
             </div>
           ))}
+          {error && <p className="text-red-500 text-sm">{error}</p>}
           <button
             type="submit"
-            className="w-full bg-white text-black py-3 text-sm tracking-widest uppercase font-medium hover:bg-neutral-200 transition-colors mt-4"
+            disabled={loading}
+            className="w-full bg-white text-black py-3 text-sm tracking-widest uppercase font-medium hover:bg-neutral-200 transition-colors mt-4 disabled:opacity-50"
           >
-            Complete order &mdash; {money(cart.subtotal)}
+            {loading ? "Redirecting to secure checkout..." : `Complete order — ${money(cart.subtotal)}`}
           </button>
-          <p className="text-[11px] text-neutral-600 text-center pt-2">Demo checkout. No payment is charged.</p>
+          <p className="text-[11px] text-neutral-600 text-center pt-2">You'll enter card details on Stripe's secure page.</p>
         </form>
 
         <div>
@@ -536,7 +533,22 @@ export default function OutsideWorldStore() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [modalProduct, setModalProduct] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const [orderStatus, setOrderStatus] = useState(null);
   const cart = useCart();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const order = params.get("order");
+    if (order === "success") {
+      cart.clear();
+      setOrderStatus("success");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (order === "cancelled") {
+      setOrderStatus("cancelled");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleNav(dest) {
     if (dest === "shop") setView("shop");
@@ -555,6 +567,17 @@ export default function OutsideWorldStore() {
       `}</style>
 
       <Header cartCount={cart.count} onCartClick={() => setCartOpen(true)} onNav={handleNav} />
+
+      {orderStatus === "success" && (
+        <div className="bg-white text-black text-center py-3 text-sm tracking-widest uppercase flex items-center justify-center gap-2">
+          <Check size={16} /> Payment successful — thank you for your order
+        </div>
+      )}
+      {orderStatus === "cancelled" && (
+        <div className="bg-neutral-800 text-white text-center py-3 text-sm tracking-widest uppercase">
+          Checkout cancelled — your cart is still saved
+        </div>
+      )}
 
       {view === "home" && (
         <>
