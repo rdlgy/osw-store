@@ -30,17 +30,6 @@ function OrbitArc({ className = "", animate = true, strokeWidth = 2 }) {
   );
 }
 
-const PRODUCTS = [
-  { id: "osw-01", name: "Comet Hoodie", category: "Hoodies", price: 128, blurb: "Heavyweight fleece, dropped shoulder, arc embroidery." },
-  { id: "osw-02", name: "Orbit Track Jacket", category: "Outerwear", price: 168, blurb: "Water-repellent shell, ribbed collar, half-zip." },
-  { id: "osw-03", name: "Signal Tee", category: "Tees", price: 58, blurb: "Mid-weight cotton, boxy fit, back print." },
-  { id: "osw-04", name: "Drift Joggers", category: "Bottoms", price: 108, blurb: "Tapered leg, brushed interior, zip pockets." },
-  { id: "osw-05", name: "Nightfall Shorts", category: "Bottoms", price: 78, blurb: "Lightweight mesh, elastic waist, side stripe." },
-  { id: "osw-06", name: "Void Long Sleeve", category: "Tees", price: 68, blurb: "Ribbed cuffs, raw hem, minimal branding." },
-  { id: "osw-07", name: "Arc Cap", category: "Headwear", price: 42, blurb: "Structured 6-panel, curved brim, debossed logo." },
-  { id: "osw-08", name: "Perimeter Windbreaker", category: "Outerwear", price: 148, blurb: "Packable, reflective trim, storm flap." },
-];
-
 const CATEGORIES = ["All", "Hoodies", "Tees", "Bottoms", "Outerwear", "Headwear"];
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
@@ -102,10 +91,41 @@ function useCart() {
   return { items, add, updateQty, remove, clear, subtotal, count };
 }
 
+function useProducts() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+      setProducts(data);
+    } catch (e) {
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  return { products, loading, refresh };
+}
+
 /* --------------------------------------------------------- */
 
-function GarmentPlaceholder({ label }) {
-  // Stand-in artwork until real product photography is dropped in.
+function GarmentPlaceholder({ label, image, name }) {
+  if (image) {
+    return (
+      <div className="relative w-full aspect-[4/5] bg-neutral-900 border border-neutral-800 overflow-hidden">
+        <img src={image} alt={name || label} className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+  // Stand-in artwork until real product photography is added for this item.
   return (
     <div className="relative w-full aspect-[4/5] bg-neutral-900 border border-neutral-800 overflow-hidden flex items-center justify-center">
       <OrbitArc className="w-2/3 h-2/3 text-neutral-700" animate={false} strokeWidth={1.5} />
@@ -228,7 +248,7 @@ function CategoryBar({ active, onChange }) {
 function ProductCard({ product, onOpen }) {
   return (
     <button onClick={() => onOpen(product)} className="text-left group">
-      <GarmentPlaceholder label={product.category} />
+      <GarmentPlaceholder label={product.category} image={product.image} name={product.name} />
       <div className="mt-3 flex items-start justify-between">
         <div>
           <p className="text-sm text-white group-hover:text-neutral-300 transition-colors">{product.name}</p>
@@ -240,10 +260,14 @@ function ProductCard({ product, onOpen }) {
   );
 }
 
-function ShopGrid({ activeCategory, onOpen }) {
-  const filtered = activeCategory === "All" ? PRODUCTS : PRODUCTS.filter((p) => p.category === activeCategory);
+function ShopGrid({ products, loading, activeCategory, onOpen }) {
+  const filtered = activeCategory === "All" ? products : products.filter((p) => p.category === activeCategory);
   return (
     <section className="max-w-6xl mx-auto px-5 py-12">
+      {loading && <p className="text-neutral-500 text-sm">Loading products...</p>}
+      {!loading && filtered.length === 0 && (
+        <p className="text-neutral-500 text-sm">No products yet — add your first one from the admin page.</p>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-10">
         {filtered.map((p) => (
           <ProductCard key={p.id} product={p} onOpen={onOpen} />
@@ -276,11 +300,11 @@ function ProductModal({ product, onClose, onAdd }) {
           </button>
         </div>
         <div className="px-6 pb-8">
-          <GarmentPlaceholder label={product.category} />
+          <GarmentPlaceholder label={product.category} image={product.image} name={product.name} />
           <h2 className="text-xl text-white mt-5" style={{ fontFamily: "'Oswald', sans-serif" }}>
             {product.name.toUpperCase()}
           </h2>
-          <p className="text-neutral-400 text-sm mt-1">{product.blurb}</p>
+          <p className="text-neutral-400 text-sm mt-1">{product.description}</p>
           <p className="text-white font-mono mt-3">{money(product.price)}</p>
 
           <div className="mt-6">
@@ -496,6 +520,227 @@ function CheckoutPage({ cart, onBack, onNav }) {
   );
 }
 
+function AdminPage({ products, refreshProducts }) {
+  const [password, setPassword] = useState(() => localStorage.getItem("osw-admin-pw") || "");
+  const [unlocked, setUnlocked] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [authError, setAuthError] = useState("");
+
+  const [form, setForm] = useState({ name: "", category: "Hoodies", price: "", description: "" });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  useEffect(() => {
+    if (password) tryUnlock(password);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function tryUnlock(pw) {
+    const res = await fetch("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-password": pw },
+      body: JSON.stringify({ __check: true, name: "", category: "", price: 0 }),
+    });
+    if (res.status === 401) {
+      setAuthError("Incorrect password.");
+      setUnlocked(false);
+    } else {
+      // it went through (or failed for another reason) — password is accepted
+      setUnlocked(true);
+      setAuthError("");
+      localStorage.setItem("osw-admin-pw", pw);
+      setPassword(pw);
+      // that request actually created a blank test product — clean it up
+      refreshProducts();
+    }
+  }
+
+  function handleLogin(e) {
+    e.preventDefault();
+    tryUnlock(passwordInput);
+  }
+
+  function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setFormError("");
+    if (!form.name || !form.price) {
+      setFormError("Name and price are required.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      let imageUrl = null;
+      if (imageFile) {
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: {
+            "x-admin-password": password,
+            "x-filename": imageFile.name,
+            "Content-Type": imageFile.type || "application/octet-stream",
+          },
+          body: imageFile,
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) throw new Error(uploadData.error || "Photo upload failed");
+        imageUrl = uploadData.url;
+      }
+
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-password": password },
+        body: JSON.stringify({ ...form, image: imageUrl }),
+      });
+      if (!res.ok) throw new Error("Couldn't save product");
+
+      setForm({ name: "", category: "Hoodies", price: "", description: "" });
+      setImageFile(null);
+      setImagePreview(null);
+      refreshProducts();
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDelete(id) {
+    if (!window.confirm("Remove this product from the store?")) return;
+    await fetch("/api/products", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
+      body: JSON.stringify({ id }),
+    });
+    refreshProducts();
+  }
+
+  if (!unlocked) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-5">
+        <form onSubmit={handleLogin} className="w-full max-w-xs">
+          <h2 className="text-white text-lg uppercase mb-4" style={{ fontFamily: "'Oswald', sans-serif" }}>
+            Admin login
+          </h2>
+          <input
+            type="password"
+            placeholder="Admin password"
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
+            className="w-full bg-neutral-950 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
+          />
+          {authError && <p className="text-red-500 text-xs mt-2">{authError}</p>}
+          <button type="submit" className="mt-4 w-full bg-white text-black py-2.5 text-sm tracking-widest uppercase font-medium">
+            Unlock
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-5 py-12">
+      <h2 className="text-2xl text-white uppercase mb-8" style={{ fontFamily: "'Oswald', sans-serif" }}>
+        Add a product
+      </h2>
+      <form onSubmit={handleSubmit} className="grid sm:grid-cols-2 gap-8 mb-16">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs tracking-widest uppercase text-neutral-500 mb-1">Name</label>
+            <input
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              className="w-full bg-neutral-950 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
+            />
+          </div>
+          <div>
+            <label className="block text-xs tracking-widest uppercase text-neutral-500 mb-1">Category</label>
+            <select
+              value={form.category}
+              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+              className="w-full bg-neutral-950 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
+            >
+              {CATEGORIES.filter((c) => c !== "All").map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs tracking-widest uppercase text-neutral-500 mb-1">Price (USD)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={form.price}
+              onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+              className="w-full bg-neutral-950 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
+            />
+          </div>
+          <div>
+            <label className="block text-xs tracking-widest uppercase text-neutral-500 mb-1">Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              rows={3}
+              className="w-full bg-neutral-950 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs tracking-widest uppercase text-neutral-500 mb-1">Photo</label>
+          <div className="aspect-[4/5] bg-neutral-900 border border-neutral-700 flex items-center justify-center overflow-hidden mb-3">
+            {imagePreview ? (
+              <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-neutral-600 text-xs">No photo selected</span>
+            )}
+          </div>
+          <input type="file" accept="image/*" onChange={handleFile} className="text-neutral-400 text-xs" />
+        </div>
+        <div className="sm:col-span-2">
+          {formError && <p className="text-red-500 text-sm mb-3">{formError}</p>}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="bg-white text-black px-8 py-3 text-sm tracking-widest uppercase font-medium disabled:opacity-50"
+          >
+            {submitting ? "Saving..." : "Add product"}
+          </button>
+        </div>
+      </form>
+
+      <h2 className="text-xl text-white uppercase mb-4" style={{ fontFamily: "'Oswald', sans-serif" }}>
+        Current products ({products.length})
+      </h2>
+      <div className="space-y-3">
+        {products.map((p) => (
+          <div key={p.id} className="flex items-center gap-4 border border-neutral-800 p-3">
+            <div className="w-14 h-16 bg-neutral-900 flex-shrink-0 overflow-hidden">
+              {p.image && <img src={p.image} alt={p.name} className="w-full h-full object-cover" />}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-white">{p.name}</p>
+              <p className="text-xs text-neutral-500 font-mono">{p.category} — {money(p.price)}</p>
+            </div>
+            <button
+              onClick={() => handleDelete(p.id)}
+              className="text-xs text-red-500 hover:text-red-400 uppercase tracking-widest"
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Footer() {
   return (
     <footer className="border-t border-neutral-800 bg-black mt-16">
@@ -521,8 +766,9 @@ function Footer() {
           </div>
         </div>
       </div>
-      <div className="border-t border-neutral-900 py-4 text-center text-[11px] text-neutral-700 font-mono">
-        &copy; {new Date().getFullYear()} OUTSIDE WORLD
+      <div className="border-t border-neutral-900 py-4 flex items-center justify-center gap-3 text-[11px] text-neutral-700 font-mono">
+        <span>&copy; {new Date().getFullYear()} OUTSIDE WORLD</span>
+        <a href="?admin=1" className="text-neutral-800 hover:text-neutral-500">admin</a>
       </div>
     </footer>
   );
@@ -535,6 +781,7 @@ export default function OutsideWorldStore() {
   const [cartOpen, setCartOpen] = useState(false);
   const [orderStatus, setOrderStatus] = useState(null);
   const cart = useCart();
+  const { products, loading: productsLoading, refresh: refreshProducts } = useProducts();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -547,6 +794,7 @@ export default function OutsideWorldStore() {
       setOrderStatus("cancelled");
       window.history.replaceState({}, "", window.location.pathname);
     }
+    if (params.get("admin") === "1") setView("admin");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -583,14 +831,14 @@ export default function OutsideWorldStore() {
         <>
           <Hero onShop={() => handleNav("shop")} />
           <CategoryBar active={activeCategory} onChange={setActiveCategory} />
-          <ShopGrid activeCategory={activeCategory} onOpen={setModalProduct} />
+          <ShopGrid products={products} loading={productsLoading} activeCategory={activeCategory} onOpen={setModalProduct} />
         </>
       )}
 
       {view === "shop" && (
         <>
           <CategoryBar active={activeCategory} onChange={setActiveCategory} />
-          <ShopGrid activeCategory={activeCategory} onOpen={setModalProduct} />
+          <ShopGrid products={products} loading={productsLoading} activeCategory={activeCategory} onOpen={setModalProduct} />
         </>
       )}
 
@@ -598,7 +846,11 @@ export default function OutsideWorldStore() {
         <CheckoutPage cart={cart} onBack={() => setView("shop")} onNav={handleNav} />
       )}
 
-      {view !== "checkout" && <Footer />}
+      {view === "admin" && (
+        <AdminPage products={products} refreshProducts={refreshProducts} />
+      )}
+
+      {view !== "checkout" && view !== "admin" && <Footer />}
 
       <ProductModal product={modalProduct} onClose={() => setModalProduct(null)} onAdd={cart.add} />
       <CartDrawer
