@@ -454,14 +454,34 @@ function CheckoutPage({ cart, onBack, onNav }) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function submit(e) {
-    e.preventDefault();
-    setPlaced(true);
-    setTimeout(() => {
-      cart.clear();
-      onNav("home");
-    }, 2500);
+  async function submit(e) {
+  e.preventDefault();
+
+  try {
+    const res = await fetch("/api/create-checkout-session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        items: cart.items,
+        customerEmail: form.email,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.url) {
+      // Redirect customer to real Stripe Checkout
+      window.location.href = data.url;
+    } else {
+      alert(data.error || "Something went wrong with payment");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Failed to start payment");
   }
+}
 
   if (placed) {
     return (
