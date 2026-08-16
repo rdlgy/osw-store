@@ -174,7 +174,9 @@ function Hero({ onShop }) {
   return (
     <section className="relative bg-black text-white px-5 pt-20 pb-24 overflow-hidden">
       <div className="max-w-4xl mx-auto text-center relative">
-        <p className="text-xs tracking-[0.3em] text-neutral-500 font-mono uppercase mb-6">Luxury streetwear / est. season one</p>
+        <p className="text-xs tracking-[0.3em] text-neutral-500 font-mono uppercase mb-6">
+          Luxury streetwear / est. season one
+        </p>
         <h1
           className="text-5xl sm:text-7xl font-bold tracking-tight uppercase leading-none"
           style={{ fontFamily: "'Oswald', sans-serif" }}
@@ -182,14 +184,16 @@ function Hero({ onShop }) {
           Outside World
         </h1>
 
-        {/* Logo in the circle area */}
-        <div className="flex justify-center my-8">
-          <img 
-            src="/osw-logo.png" 
-            alt="OSW Logo" 
-            className="w-40 h-auto object-contain"
-            style={{ maxHeight: "100px" }}
-          />
+        {/* Logo inside the orbit circle */}
+        <div className="flex justify-center my-8 relative">
+          <div className="relative w-44 h-24 flex items-center justify-center">
+            <OrbitArc className="absolute inset-0 w-full h-full text-neutral-500" animate={true} />
+            <img
+              src="/osw-logo.png"
+              alt="OSW Logo"
+              className="relative z-10 w-28 h-auto object-contain"
+            />
+          </div>
         </div>
 
         <p className="text-neutral-400 max-w-md mx-auto text-sm leading-relaxed">
