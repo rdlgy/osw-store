@@ -7,7 +7,6 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);
 
-  // Form state
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Clothing");
   const [price, setPrice] = useState("");
@@ -16,7 +15,6 @@ export default function App() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
 
-  // Fetch products
   const fetchProducts = async () => {
     try {
       const res = await fetch("/api/products");
@@ -33,7 +31,6 @@ export default function App() {
     fetchProducts();
   }, []);
 
-  // Admin login
   const handleLogin = async () => {
     try {
       const res = await fetch("/api/products", {
@@ -56,7 +53,6 @@ export default function App() {
     }
   };
 
-  // Upload + Create Product
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name || !price || !imageFile) {
@@ -68,7 +64,6 @@ export default function App() {
     setMessage("Uploading image...");
 
     try {
-      // 1. Upload image
       const uploadRes = await fetch("/api/upload", {
         method: "POST",
         headers: {
@@ -81,7 +76,6 @@ export default function App() {
       const uploadData = await uploadRes.json();
       if (!uploadRes.ok) throw new Error(uploadData.error || "Upload failed");
 
-      // 2. Create product
       setMessage("Saving product...");
       const productRes = await fetch("/api/products", {
         method: "POST",
@@ -101,7 +95,6 @@ export default function App() {
       const productData = await productRes.json();
       if (!productRes.ok) throw new Error(productData.error || "Failed to save");
 
-      // Reset form
       setName("");
       setPrice("");
       setDescription("");
@@ -115,7 +108,6 @@ export default function App() {
     }
   };
 
-  // Delete product
   const handleDelete = async (id) => {
     if (!confirm("Delete this product?")) return;
 
@@ -135,15 +127,22 @@ export default function App() {
   };
 
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 1100, margin: "0 auto", padding: 16 }}>
+    <div style={{ 
+      fontFamily: "system-ui, sans-serif", 
+      maxWidth: 1100, 
+      margin: "0 auto", 
+      padding: 16,
+      color: "#f1f5f9",
+      minHeight: "100vh"
+    }}>
       {/* Header */}
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32 }}>
-        <h1 style={{ margin: 0, fontSize: 28 }}>OSW Store</h1>
+        <h1 style={{ margin: 0, fontSize: 28, color: "#ffffff" }}>Outside World</h1>
         <button
           onClick={() => setShowAdmin(!showAdmin)}
           style={{
             padding: "8px 16px",
-            background: showAdmin ? "#ef4444" : "#111",
+            background: showAdmin ? "#ef4444" : "#334155",
             color: "white",
             border: "none",
             borderRadius: 8,
@@ -156,38 +155,75 @@ export default function App() {
 
       {/* Admin Panel */}
       {showAdmin && (
-        <div style={{ background: "#f8fafc", padding: 24, borderRadius: 12, marginBottom: 40, border: "1px solid #e2e8f0" }}>
+        <div style={{ 
+          background: "#1e293b", 
+          padding: 24, 
+          borderRadius: 12, 
+          marginBottom: 40, 
+          border: "1px solid #334155" 
+        }}>
           {!isAdmin ? (
             <div>
-              <h2 style={{ marginTop: 0 }}>Admin Login</h2>
+              <h2 style={{ marginTop: 0, color: "#f8fafc" }}>Admin Login</h2>
               <input
                 type="password"
                 placeholder="Enter admin password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                style={{ padding: 10, width: "100%", maxWidth: 300, marginBottom: 12, borderRadius: 8, border: "1px solid #cbd5e1" }}
+                style={{ 
+                  padding: 12, 
+                  width: "100%", 
+                  maxWidth: 320, 
+                  marginBottom: 12, 
+                  borderRadius: 8, 
+                  border: "1px solid #475569",
+                  background: "#0f172a",
+                  color: "white"
+                }}
               />
               <br />
-              <button onClick={handleLogin} style={{ padding: "10px 20px", background: "#111", color: "white", border: "none", borderRadius: 8 }}>
+              <button 
+                onClick={handleLogin} 
+                style={{ 
+                  padding: "10px 20px", 
+                  background: "#3b82f6", 
+                  color: "white", 
+                  border: "none", 
+                  borderRadius: 8,
+                  fontWeight: 600
+                }}
+              >
                 Login
               </button>
-              {message && <p style={{ color: "red" }}>{message}</p>}
+              {message && <p style={{ color: "#f87171", marginTop: 12 }}>{message}</p>}
             </div>
           ) : (
             <div>
-              <h2 style={{ marginTop: 0 }}>Add New Product</h2>
+              <h2 style={{ marginTop: 0, color: "#f8fafc" }}>Add New Product</h2>
               <form onSubmit={handleSubmit}>
-                <div style={{ display: "grid", gap: 12, maxWidth: 500 }}>
+                <div style={{ display: "grid", gap: 14, maxWidth: 480 }}>
                   <input
                     placeholder="Product name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+                    style={{ 
+                      padding: 12, 
+                      borderRadius: 8, 
+                      border: "1px solid #475569",
+                      background: "#0f172a",
+                      color: "white"
+                    }}
                   />
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+                    style={{ 
+                      padding: 12, 
+                      borderRadius: 8, 
+                      border: "1px solid #475569",
+                      background: "#0f172a",
+                      color: "white"
+                    }}
                   >
                     <option>Clothing</option>
                     <option>Shoes</option>
@@ -196,54 +232,90 @@ export default function App() {
                   </select>
                   <input
                     type="number"
-                    placeholder="Price"
+                    placeholder="Price (₦)"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+                    style={{ 
+                      padding: 12, 
+                      borderRadius: 8, 
+                      border: "1px solid #475569",
+                      background: "#0f172a",
+                      color: "white"
+                    }}
                   />
                   <textarea
                     placeholder="Description (optional)"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={3}
-                    style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+                    style={{ 
+                      padding: 12, 
+                      borderRadius: 8, 
+                      border: "1px solid #475569",
+                      background: "#0f172a",
+                      color: "white"
+                    }}
                   />
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => setImageFile(e.target.files[0])}
+                    style={{ color: "#94a3b8" }}
                   />
                   <button
                     type="submit"
                     disabled={uploading}
                     style={{
-                      padding: "12px",
-                      background: uploading ? "#94a3b8" : "#16a34a",
+                      padding: "14px",
+                      background: uploading ? "#475569" : "#22c55e",
                       color: "white",
                       border: "none",
                       borderRadius: 8,
                       fontWeight: 600,
+                      fontSize: 16
                     }}
                   >
                     {uploading ? "Uploading..." : "Add Product"}
                   </button>
                 </div>
               </form>
-              {message && <p style={{ marginTop: 12 }}>{message}</p>}
+              {message && <p style={{ marginTop: 14, color: message.includes("✅") ? "#4ade80" : "#f87171" }}>{message}</p>}
 
-              {/* Admin Product List */}
-              <h3 style={{ marginTop: 40 }}>All Products (Admin)</h3>
+              <h3 style={{ marginTop: 40, color: "#f8fafc" }}>All Products</h3>
               <div style={{ display: "grid", gap: 12 }}>
                 {products.map((p) => (
-                  <div key={p.id} style={{ display: "flex", gap: 16, alignItems: "center", background: "white", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}>
-                    {p.image && <img src={p.image} alt={p.name} style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} />}
+                  <div key={p.id} style={{ 
+                    display: "flex", 
+                    gap: 16, 
+                    alignItems: "center", 
+                    background: "#0f172a", 
+                    padding: 12, 
+                    borderRadius: 8, 
+                    border: "1px solid #334155" 
+                  }}>
+                    {p.image && (
+                      <img 
+                        src={p.image} 
+                        alt={p.name} 
+                        style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} 
+                      />
+                    )}
                     <div style={{ flex: 1 }}>
-                      <strong>{p.name}</strong> — ₦{Number(p.price).toLocaleString()}
-                      <div style={{ fontSize: 13, color: "#64748b" }}>{p.category}</div>
+                      <strong style={{ color: "#f1f5f9" }}>{p.name}</strong>
+                      <div style={{ color: "#94a3b8", fontSize: 14 }}>
+                        ₦{Number(p.price).toLocaleString()} · {p.category}
+                      </div>
                     </div>
                     <button
                       onClick={() => handleDelete(p.id)}
-                      style={{ background: "#ef4444", color: "white", border: "none", padding: "6px 12px", borderRadius: 6 }}
+                      style={{ 
+                        background: "#ef4444", 
+                        color: "white", 
+                        border: "none", 
+                        padding: "7px 14px", 
+                        borderRadius: 6,
+                        fontSize: 14
+                      }}
                     >
                       Delete
                     </button>
@@ -256,16 +328,16 @@ export default function App() {
       )}
 
       {/* Storefront */}
-      <h2 style={{ marginBottom: 20 }}>Shop</h2>
+      <h2 style={{ marginBottom: 20, color: "#f8fafc" }}>Shop</h2>
       {loading ? (
-        <p>Loading products...</p>
+        <p style={{ color: "#94a3b8" }}>Loading products...</p>
       ) : products.length === 0 ? (
-        <p>No products yet. Add some from the Admin panel.</p>
+        <p style={{ color: "#94a3b8" }}>No products yet. Add some from Admin.</p>
       ) : (
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
             gap: 20,
           }}
         >
@@ -273,10 +345,10 @@ export default function App() {
             <div
               key={p.id}
               style={{
-                border: "1px solid #e2e8f0",
+                border: "1px solid #334155",
                 borderRadius: 12,
                 overflow: "hidden",
-                background: "white",
+                background: "#1e293b",
               }}
             >
               {p.image ? (
@@ -286,14 +358,23 @@ export default function App() {
                   style={{ width: "100%", height: 220, objectFit: "cover" }}
                 />
               ) : (
-                <div style={{ height: 220, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ 
+                  height: 220, 
+                  background: "#0f172a", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  color: "#64748b"
+                }}>
                   No Image
                 </div>
               )}
               <div style={{ padding: 14 }}>
-                <h3 style={{ margin: "0 0 6px", fontSize: 17 }}>{p.name}</h3>
-                <p style={{ margin: "0 0 8px", color: "#64748b", fontSize: 14 }}>{p.category}</p>
-                <p style={{ margin: 0, fontWeight: 700, fontSize: 18 }}>₦{Number(p.price).toLocaleString()}</p>
+                <h3 style={{ margin: "0 0 6px", fontSize: 16, color: "#f1f5f9" }}>{p.name}</h3>
+                <p style={{ margin: "0 0 8px", color: "#94a3b8", fontSize: 13 }}>{p.category}</p>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 17, color: "#4ade80" }}>
+                  ₦{Number(p.price).toLocaleString()}
+                </p>
               </div>
             </div>
           ))}
