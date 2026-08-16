@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { ShoppingBag, X, Plus, Minus, Menu, ArrowRight, Check } from "lucide-react";
+import { ShoppingBag, X, Plus, Minus, Menu, ArrowRight, Check, Trash2 } from "lucide-react";
 
 const ORBIT_PATH = "M 10,50 C 10,20 90,10 150,25 C 190,35 190,65 150,75 C 90,90 10,80 10,50 Z";
 
@@ -58,9 +58,9 @@ function useCart() {
     } catch (e) {}
   }, [items, loaded]);
 
-  function add(product, size, qty = 1) {
+  function add(product, size, color, qty = 1) {
     setItems((prev) => {
-      const key = `${product.id}-${size}`;
+      const key = `${product.id}-${size}-${color || "default"}`;
       const existing = prev.find((i) => i.key === key);
       if (existing) {
         return prev.map((i) => (i.key === key ? { ...i, qty: i.qty + qty } : i));
@@ -74,6 +74,7 @@ function useCart() {
           price: product.price,
           currency: product.currency || "USD",
           size,
+          color: color || null,
           qty,
           image: product.image,
         },
@@ -180,9 +181,17 @@ function Hero({ onShop }) {
         >
           Outside World
         </h1>
-        <div className="flex justify-center my-6">
-          <OrbitArc className="w-40 h-20 text-neutral-500" />
+
+        {/* Logo in the circle area */}
+        <div className="flex justify-center my-8">
+          <img 
+            src="/osw-logo.png" 
+            alt="OSW Logo" 
+            className="w-40 h-auto object-contain"
+            style={{ maxHeight: "100px" }}
+          />
         </div>
+
         <p className="text-neutral-400 max-w-md mx-auto text-sm leading-relaxed">
           Built for the space between the gym and the street. Heavyweight fabrics, quiet branding, no wasted stitches.
         </p>
@@ -265,11 +274,21 @@ function ShopGrid({ products, activeCategory, onOpen }) {
 
 function ProductModal({ product, onClose, onAdd }) {
   const [size, setSize] = useState("M");
+  const [color, setColor] = useState("");
   const [added, setAdded] = useState(false);
+
+  const colors = product?.colors || [];
+
+  useEffect(() => {
+    if (colors.length > 0) {
+      setColor(colors[0]);
+    }
+  }, [product]);
+
   if (!product) return null;
 
   function handleAdd() {
-    onAdd(product, size, 1);
+    onAdd(product, size, color, 1);
     setAdded(true);
     setTimeout(() => setAdded(false), 1400);
   }
@@ -298,6 +317,27 @@ function ProductModal({ product, onClose, onAdd }) {
           </h2>
           <p className="text-neutral-400 text-sm mt-1">{product.description || ""}</p>
           <p className="text-white font-mono mt-3">{money(product.price, product.currency)}</p>
+
+          {/* Color selection */}
+          {colors.length > 0 && (
+            <div className="mt-6">
+              <p className="text-xs tracking-widest text-neutral-500 uppercase mb-2">Color</p>
+              <div className="flex flex-wrap gap-2">
+                {colors.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setColor(c)}
+                    className={`px-3 py-1.5 text-xs font-mono border transition-colors ${
+                      color === c ? "bg-white text-black border-white" : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="mt-6">
             <p className="text-xs tracking-widest text-neutral-500 uppercase mb-2">Size</p>
             <div className="flex flex-wrap gap-2">
@@ -364,7 +404,9 @@ function CartDrawer({ open, onClose, cart, onCheckout }) {
                     <X size={14} />
                   </button>
                 </div>
-                <p className="text-xs text-neutral-500 font-mono mt-0.5">Size {item.size}</p>
+                <p className="text-xs text-neutral-500 font-mono mt-0.5">
+                  Size {item.size}{item.color ? ` · ${item.color}` : ""}
+                </p>
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex items-center border border-neutral-700">
                     <button className="px-2 py-1 text-neutral-300 hover:text-white" onClick={() => cart.updateQty(item.key, item.qty - 1)}>
@@ -474,7 +516,7 @@ function CheckoutPage({ cart, onBack, onNav }) {
               <div key={item.key} className="flex justify-between text-sm">
                 <span className="text-neutral-300">
                   {item.name} <span className="text-neutral-600">×{item.qty}</span>{" "}
-                  <span className="text-neutral-600 font-mono">({item.size})</span>
+                  <span className="text-neutral-600 font-mono">({item.size}{item.color ? `, ${item.color}` : ""})</span>
                 </span>
                 <span className="text-neutral-300 font-mono">{money(item.price * item.qty, item.currency)}</span>
               </div>
@@ -542,7 +584,7 @@ function Footer({ onNav }) {
   );
 }
 
-function AdminPanel({ onClose, onProductAdded }) {
+function AdminPanel({ onClose, onProductAdded, products }) {
   const [password, setPassword] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [name, setName] = useState("");
@@ -550,6 +592,7 @@ function AdminPanel({ onClose, onProductAdded }) {
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [description, setDescription] = useState("");
+  const [colors, setColors] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
@@ -598,6 +641,11 @@ function AdminPanel({ onClose, onProductAdded }) {
       if (!uploadRes.ok) throw new Error(uploadData.error || "Upload failed");
 
       setMessage("Saving product...");
+      const colorList = colors
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean);
+
       const productRes = await fetch("/api/products", {
         method: "POST",
         headers: {
@@ -610,6 +658,7 @@ function AdminPanel({ onClose, onProductAdded }) {
           price: Number(price),
           currency,
           description,
+          colors: colorList,
           image: uploadData.url,
         }),
       });
@@ -619,6 +668,7 @@ function AdminPanel({ onClose, onProductAdded }) {
       setName("");
       setPrice("");
       setDescription("");
+      setColors("");
       setImageFile(null);
       setMessage("✅ Product added!");
       onProductAdded();
@@ -629,9 +679,26 @@ function AdminPanel({ onClose, onProductAdded }) {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this product?")) return;
+    try {
+      await fetch("/api/products", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": password,
+        },
+        body: JSON.stringify({ id }),
+      });
+      onProductAdded();
+    } catch (err) {
+      alert("Delete failed");
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-      <div className="bg-neutral-950 border border-neutral-800 w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
+      <div className="bg-neutral-950 border border-neutral-800 w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-white text-lg uppercase tracking-widest" style={{ fontFamily: "'Oswald', sans-serif" }}>
             Admin
@@ -659,66 +726,103 @@ function AdminPanel({ onClose, onProductAdded }) {
             {message && <p className="text-red-500 text-sm mt-3">{message}</p>}
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <input
-              placeholder="Product name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
-            />
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
-            >
-              {CATEGORIES.filter((c) => c !== "All").map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            <div className="flex gap-2">
+          <>
+            <form onSubmit={handleSubmit} className="space-y-3 mb-8">
               <input
-                type="number"
-                placeholder="Price"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className="flex-1 bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
+                placeholder="Product name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
               />
               <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="w-24 bg-neutral-900 border border-neutral-700 px-2 py-2 text-sm text-white focus:outline-none focus:border-white"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
               >
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="NGN">NGN</option>
+                {CATEGORIES.filter((c) => c !== "All").map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
               </select>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  placeholder="Price"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  className="flex-1 bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
+                />
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-24 bg-neutral-900 border border-neutral-700 px-2 py-2 text-sm text-white focus:outline-none focus:border-white"
+                >
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="NGN">NGN</option>
+                </select>
+              </div>
+              <input
+                placeholder="Colors (e.g. Black, White, Olive)"
+                value={colors}
+                onChange={(e) => setColors(e.target.value)}
+                className="w-full bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
+              />
+              <textarea
+                placeholder="Description (optional)"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                className="w-full bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
+              />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files[0])}
+                className="w-full text-sm text-neutral-400"
+              />
+              <button
+                type="submit"
+                disabled={uploading}
+                className="w-full bg-white text-black py-2 text-sm tracking-widest uppercase font-medium disabled:opacity-50"
+              >
+                {uploading ? "Uploading..." : "Add Product"}
+              </button>
+              {message && (
+                <p className={`text-sm mt-2 ${message.includes("✅") ? "text-green-500" : "text-red-500"}`}>
+                  {message}
+                </p>
+              )}
+            </form>
+
+            {/* Product list with delete */}
+            <div className="border-t border-neutral-800 pt-6">
+              <h3 className="text-white text-sm tracking-widest uppercase mb-4">All Products</h3>
+              <div className="space-y-3">
+                {products.map((p) => (
+                  <div key={p.id} className="flex items-center gap-3 bg-neutral-900 p-3 rounded">
+                    {p.image && (
+                      <img src={p.image} alt={p.name} className="w-12 h-12 object-cover rounded" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm truncate">{p.name}</p>
+                      <p className="text-neutral-500 text-xs">
+                        {money(p.price, p.currency)} · {p.category}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleDelete(p.id)}
+                      className="text-red-500 hover:text-red-400 p-1"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+                {products.length === 0 && (
+                  <p className="text-neutral-500 text-sm">No products yet.</p>
+                )}
+              </div>
             </div>
-            <textarea
-              placeholder="Description (optional)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="w-full bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
-            />
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setImageFile(e.target.files[0])}
-              className="w-full text-sm text-neutral-400"
-            />
-            <button
-              type="submit"
-              disabled={uploading}
-              className="w-full bg-white text-black py-2 text-sm tracking-widest uppercase font-medium disabled:opacity-50"
-            >
-              {uploading ? "Uploading..." : "Add Product"}
-            </button>
-            {message && (
-              <p className={`text-sm mt-2 ${message.includes("✅") ? "text-green-500" : "text-red-500"}`}>
-                {message}
-              </p>
-            )}
-          </form>
+          </>
         )}
       </div>
     </div>
@@ -735,7 +839,6 @@ export default function OutsideWorldStore() {
   const [loading, setLoading] = useState(true);
   const cart = useCart();
 
-  // Check for ?admin in URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("admin") !== null) {
@@ -830,7 +933,7 @@ export default function OutsideWorldStore() {
       {view === "contact" && (
         <SimplePage title="Contact" onBack={() => handleNav("home")}>
           <p>For any questions about orders, sizing, or collaborations:</p>
-          <p className="text-white">Email: hello@outsideworldbrand.com</p>
+          <p className="text-white">Email: outsideworldosw@gmail.com</p>
           <p>We usually reply within 24–48 hours.</p>
         </SimplePage>
       )}
@@ -858,12 +961,12 @@ export default function OutsideWorldStore() {
         <AdminPanel
           onClose={() => {
             setShowAdmin(false);
-            // Remove ?admin from URL without reload
             const url = new URL(window.location);
             url.searchParams.delete("admin");
             window.history.replaceState({}, "", url);
           }}
           onProductAdded={fetchProducts}
+          products={products}
         />
       )}
     </div>
