@@ -23,7 +23,7 @@ function OrbitArc({ className = "", animate = true, strokeWidth = 2 }) {
   );
 }
 
-const CATEGORIES = ["All", "Hoodies", "Tees", "Bottoms", "Outerwear", "Headwear", "Clothing", "Shoes", "Accessories"];
+const CATEGORIES = ["All", "Hoodies", "Tees", "Bottoms", "Headwear"];
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
 const currencySymbol = {
@@ -184,7 +184,6 @@ function Hero({ onShop }) {
           Outside World
         </h1>
 
-        {/* Logo inside the orbit circle */}
         <div className="flex justify-center my-8 relative">
           <div className="relative w-44 h-24 flex items-center justify-center">
             <OrbitArc className="absolute inset-0 w-full h-full text-neutral-500" animate={true} />
@@ -260,7 +259,8 @@ function ShopGrid({ products, activeCategory, onOpen }) {
   if (filtered.length === 0) {
     return (
       <section className="max-w-6xl mx-auto px-5 py-20 text-center">
-        <p className="text-neutral-500 text-sm">No products in this category yet.</p>
+        <p className="text-neutral-500 text-sm">No products in this category yet</p>
+        <p className="text-neutral-500 text-sm mt-1">Please check back later</p>
       </section>
     );
   }
@@ -286,6 +286,8 @@ function ProductModal({ product, onClose, onAdd }) {
   useEffect(() => {
     if (colors.length > 0) {
       setColor(colors[0]);
+    } else {
+      setColor("");
     }
   }, [product]);
 
@@ -322,7 +324,6 @@ function ProductModal({ product, onClose, onAdd }) {
           <p className="text-neutral-400 text-sm mt-1">{product.description || ""}</p>
           <p className="text-white font-mono mt-3">{money(product.price, product.currency)}</p>
 
-          {/* Color selection */}
           {colors.length > 0 && (
             <div className="mt-6">
               <p className="text-xs tracking-widest text-neutral-500 uppercase mb-2">Color</p>
@@ -571,7 +572,7 @@ function Footer({ onNav }) {
             <p className="text-neutral-300">Shop</p>
             <button onClick={() => onNav("shop")} className="block hover:text-white transition-colors">Hoodies</button>
             <button onClick={() => onNav("shop")} className="block hover:text-white transition-colors">Tees</button>
-            <button onClick={() => onNav("shop")} className="block hover:text-white transition-colors">Outerwear</button>
+            <button onClick={() => onNav("shop")} className="block hover:text-white transition-colors">Bottoms</button>
           </div>
           <div className="space-y-2">
             <p className="text-neutral-300">Info</p>
@@ -798,7 +799,6 @@ function AdminPanel({ onClose, onProductAdded, products }) {
               )}
             </form>
 
-            {/* Product list with delete */}
             <div className="border-t border-neutral-800 pt-6">
               <h3 className="text-white text-sm tracking-widest uppercase mb-4">All Products</h3>
               <div className="space-y-3">
