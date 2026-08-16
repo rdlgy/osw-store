@@ -1,18 +1,39 @@
-// api/create-checkout-session.js
-
 import Stripe from "stripe";
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+export default async function handler(request) {
+  // Handle CORS preflight
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+    });
+  }
+
+  if (request.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   try {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error("STRIPE_SECRET_KEY is missing");
+    }
+
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const { items, customerEmail } = req.body;
+    const body = await request.json();
+    const { items, customerEmail } = body;
 
     if (!items || items.length === 0) {
-      return res.status(400).json({ error: "Cart is empty" });
+      return new Response(JSON.stringify({ error: "Cart is empty" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const line_items = items.map((item) => ({
@@ -26,7 +47,7 @@ export default async function handler(req, res) {
       quantity: item.qty,
     }));
 
-    const origin = req.headers.origin || `https://${req.headers.host}`;
+    const origin = request.headers.get("origin") || "https://www.outsideworldbrand.com";
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -40,15 +61,18 @@ export default async function handler(req, res) {
       cancel_url: `${origin}/?order=cancelled`,
     });
 
-    res.status(200).json({ url: session.url });
+    return new Response(JSON.stringify({ url: session.url }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-}
-    res.status(200).json({ url: session.url });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.error("Stripe error:", err);
+    return new Response(JSON.stringify({ error: err.message || "Internal server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
