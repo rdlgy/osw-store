@@ -4,17 +4,13 @@ const PRODUCTS_KEY = "data/products.json";
 
 async function getProducts() {
   try {
-    // First try the fixed file
     const info = await head(PRODUCTS_KEY);
     const res = await fetch(info.url, { cache: "no-store" });
     return await res.json();
   } catch (e) {
-    // Fallback: find the most recent products-*.json file
     try {
       const { blobs } = await list({ prefix: "data/products-" });
       if (blobs.length === 0) return [];
-
-      // Sort by newest
       blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
       const res = await fetch(blobs[0].url, { cache: "no-store" });
       return await res.json();
@@ -29,7 +25,7 @@ async function saveProducts(products) {
     access: "public",
     contentType: "application/json",
     allowOverwrite: true,
-    addRandomSuffix: false,   // ← This is the important fix
+    addRandomSuffix: false,
   });
 }
 
@@ -61,6 +57,7 @@ export default async function handler(req, res) {
       price: Number(req.body.price),
       currency: req.body.currency || "USD",
       description: req.body.description || "",
+      colors: Array.isArray(req.body.colors) ? req.body.colors : [],
       image: req.body.image || null,
       createdAt: new Date().toISOString(),
     };
