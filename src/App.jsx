@@ -1,9 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { ShoppingBag, X, Plus, Minus, Menu, ArrowRight, Check, Lock } from "lucide-react";
-
-/* ---------------------------------------------------------
-   OUTSIDE WORLD (OSW) — storefront
---------------------------------------------------------- */
+import { ShoppingBag, X, Plus, Minus, Menu, ArrowRight, Check } from "lucide-react";
 
 const ORBIT_PATH = "M 10,50 C 10,20 90,10 150,25 C 190,35 190,65 150,75 C 90,90 10,80 10,50 Z";
 
@@ -41,9 +37,6 @@ function money(amount, currency = "USD") {
   return `${symbol}${Number(amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
-/* ---------------------------------------------------------
-   Cart
---------------------------------------------------------- */
 function useCart() {
   const [items, setItems] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -106,9 +99,6 @@ function useCart() {
   return { items, add, updateQty, remove, clear, subtotal, count };
 }
 
-/* ---------------------------------------------------------
-   Components
---------------------------------------------------------- */
 function GarmentPlaceholder({ label }) {
   return (
     <div className="relative w-full aspect-[4/5] bg-neutral-900 border border-neutral-800 overflow-hidden flex items-center justify-center">
@@ -120,7 +110,7 @@ function GarmentPlaceholder({ label }) {
   );
 }
 
-function Header({ cartCount, onCartClick, onNav, onAdmin }) {
+function Header({ cartCount, onCartClick, onNav }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
     <header className="sticky top-0 z-40 bg-black/90 backdrop-blur border-b border-neutral-800">
@@ -146,9 +136,6 @@ function Header({ cartCount, onCartClick, onNav, onAdmin }) {
           ))}
         </nav>
         <div className="flex items-center gap-3">
-          <button onClick={onAdmin} className="p-2 text-neutral-500 hover:text-white transition-colors" title="Admin">
-            <Lock size={18} />
-          </button>
           <button onClick={onCartClick} className="relative p-2 text-white hover:text-neutral-300 transition-colors">
             <ShoppingBag size={20} />
             {cartCount > 0 && (
@@ -309,7 +296,7 @@ function ProductModal({ product, onClose, onAdd }) {
           <h2 className="text-xl text-white mt-5" style={{ fontFamily: "'Oswald', sans-serif" }}>
             {product.name.toUpperCase()}
           </h2>
-          <p className="text-neutral-400 text-sm mt-1">{product.description || product.blurb || ""}</p>
+          <p className="text-neutral-400 text-sm mt-1">{product.description || ""}</p>
           <p className="text-white font-mono mt-3">{money(product.price, product.currency)}</p>
           <div className="mt-6">
             <p className="text-xs tracking-widest text-neutral-500 uppercase mb-2">Size</p>
@@ -444,7 +431,7 @@ function CheckoutPage({ cart, onBack, onNav }) {
   return (
     <div className="max-w-4xl mx-auto px-5 py-12">
       <button onClick={onBack} className="text-xs tracking-widest uppercase text-neutral-500 hover:text-white mb-8">
-        &larr; Back to shop
+        ← Back to shop
       </button>
       <div className="grid md:grid-cols-2 gap-12">
         <form onSubmit={submit} className="space-y-4">
@@ -507,7 +494,23 @@ function CheckoutPage({ cart, onBack, onNav }) {
   );
 }
 
-function Footer() {
+function SimplePage({ title, children, onBack }) {
+  return (
+    <div className="max-w-3xl mx-auto px-5 py-16">
+      <button onClick={onBack} className="text-xs tracking-widest uppercase text-neutral-500 hover:text-white mb-8">
+        ← Back
+      </button>
+      <h1 className="text-3xl text-white uppercase mb-6" style={{ fontFamily: "'Oswald', sans-serif" }}>
+        {title}
+      </h1>
+      <div className="text-neutral-400 text-sm leading-relaxed space-y-4">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Footer({ onNav }) {
   return (
     <footer className="border-t border-neutral-800 bg-black mt-16">
       <div className="max-w-6xl mx-auto px-5 py-12 flex flex-col sm:flex-row justify-between gap-8">
@@ -520,15 +523,15 @@ function Footer() {
         <div className="flex gap-10 text-xs tracking-widest uppercase text-neutral-500">
           <div className="space-y-2">
             <p className="text-neutral-300">Shop</p>
-            <p>Hoodies</p>
-            <p>Tees</p>
-            <p>Outerwear</p>
+            <button onClick={() => onNav("shop")} className="block hover:text-white transition-colors">Hoodies</button>
+            <button onClick={() => onNav("shop")} className="block hover:text-white transition-colors">Tees</button>
+            <button onClick={() => onNav("shop")} className="block hover:text-white transition-colors">Outerwear</button>
           </div>
           <div className="space-y-2">
             <p className="text-neutral-300">Info</p>
-            <p>Shipping</p>
-            <p>Returns</p>
-            <p>Contact</p>
+            <button onClick={() => onNav("shipping")} className="block hover:text-white transition-colors">Shipping</button>
+            <button onClick={() => onNav("returns")} className="block hover:text-white transition-colors">Returns</button>
+            <button onClick={() => onNav("contact")} className="block hover:text-white transition-colors">Contact</button>
           </div>
         </div>
       </div>
@@ -539,9 +542,6 @@ function Footer() {
   );
 }
 
-/* ---------------------------------------------------------
-   Admin Panel
---------------------------------------------------------- */
 function AdminPanel({ onClose, onProductAdded }) {
   const [password, setPassword] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -725,9 +725,6 @@ function AdminPanel({ onClose, onProductAdded }) {
   );
 }
 
-/* ---------------------------------------------------------
-   Main App
---------------------------------------------------------- */
 export default function OutsideWorldStore() {
   const [view, setView] = useState("home");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -737,6 +734,14 @@ export default function OutsideWorldStore() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const cart = useCart();
+
+  // Check for ?admin in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("admin") !== null) {
+      setShowAdmin(true);
+    }
+  }, []);
 
   const fetchProducts = async () => {
     try {
@@ -756,9 +761,7 @@ export default function OutsideWorldStore() {
   }, []);
 
   function handleNav(dest) {
-    if (dest === "shop") setView("shop");
-    else if (dest === "home") setView("home");
-    else setView("shop");
+    setView(dest);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -775,7 +778,6 @@ export default function OutsideWorldStore() {
         cartCount={cart.count}
         onCartClick={() => setCartOpen(true)}
         onNav={handleNav}
-        onAdmin={() => setShowAdmin(true)}
       />
 
       {view === "home" && (
@@ -801,11 +803,45 @@ export default function OutsideWorldStore() {
         </>
       )}
 
+      {view === "about" && (
+        <SimplePage title="About" onBack={() => handleNav("home")}>
+          <p>Outside World is a luxury streetwear brand built for the space between the gym and the street.</p>
+          <p>We focus on heavyweight fabrics, quiet branding, and no wasted stitches. Every piece is designed to move with you — from early mornings to late nights.</p>
+          <p>Established Season One.</p>
+        </SimplePage>
+      )}
+
+      {view === "shipping" && (
+        <SimplePage title="Shipping" onBack={() => handleNav("home")}>
+          <p>We currently ship worldwide.</p>
+          <p>Orders are processed within 1–3 business days. Delivery times vary by location (usually 5–14 business days).</p>
+          <p>You will receive a tracking number once your order ships.</p>
+        </SimplePage>
+      )}
+
+      {view === "returns" && (
+        <SimplePage title="Returns" onBack={() => handleNav("home")}>
+          <p>We accept returns within 14 days of delivery for unworn items with original tags attached.</p>
+          <p>To start a return, please contact us with your order number.</p>
+          <p>Return shipping is the responsibility of the customer unless the item is defective.</p>
+        </SimplePage>
+      )}
+
+      {view === "contact" && (
+        <SimplePage title="Contact" onBack={() => handleNav("home")}>
+          <p>For any questions about orders, sizing, or collaborations:</p>
+          <p className="text-white">Email: hello@outsideworldbrand.com</p>
+          <p>We usually reply within 24–48 hours.</p>
+        </SimplePage>
+      )}
+
       {view === "checkout" && (
         <CheckoutPage cart={cart} onBack={() => setView("shop")} onNav={handleNav} />
       )}
 
-      {view !== "checkout" && <Footer />}
+      {view !== "checkout" && view !== "about" && view !== "shipping" && view !== "returns" && view !== "contact" && (
+        <Footer onNav={handleNav} />
+      )}
 
       <ProductModal product={modalProduct} onClose={() => setModalProduct(null)} onAdd={cart.add} />
       <CartDrawer
@@ -820,7 +856,13 @@ export default function OutsideWorldStore() {
 
       {showAdmin && (
         <AdminPanel
-          onClose={() => setShowAdmin(false)}
+          onClose={() => {
+            setShowAdmin(false);
+            // Remove ?admin from URL without reload
+            const url = new URL(window.location);
+            url.searchParams.delete("admin");
+            window.history.replaceState({}, "", url);
+          }}
           onProductAdded={fetchProducts}
         />
       )}
