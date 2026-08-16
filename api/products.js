@@ -1,27 +1,39 @@
-import { put, head } from "@vercel/blob";
+import { put, head, list } from "@vercel/blob";
 
 const PRODUCTS_KEY = "data/products.json";
 
 async function getProducts() {
   try {
+    // First try the fixed file
     const info = await head(PRODUCTS_KEY);
     const res = await fetch(info.url, { cache: "no-store" });
     return await res.json();
   } catch (e) {
-    return [];
+    // Fallback: find the most recent products-*.json file
+    try {
+      const { blobs } = await list({ prefix: "data/products-" });
+      if (blobs.length === 0) return [];
+
+      // Sort by newest
+      blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+      const res = await fetch(blobs[0].url, { cache: "no-store" });
+      return await res.json();
+    } catch (err) {
+      return [];
+    }
   }
 }
 
 async function saveProducts(products) {
-  await put(PRODUCTS_KEY, JSON.stringify(products), {
+  await put(PRODUCTS_KEY, JSON.stringify(products, null, 2), {
     access: "public",
     contentType: "application/json",
     allowOverwrite: true,
+    addRandomSuffix: false,   // ← This is the important fix
   });
 }
 
 export default async function handler(req, res) {
-  // Prevent caching
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
