@@ -1,8 +1,3 @@
-// Handles the product catalog:
-// - GET is public (the storefront calls this to display products)
-// - POST/DELETE require the admin password (sent as a header from the
-//   admin page) and write to Vercel Blob storage — no database needed.
-
 import { put, head } from "@vercel/blob";
 
 const PRODUCTS_KEY = "data/products.json";
@@ -13,7 +8,7 @@ async function getProducts() {
     const res = await fetch(info.url, { cache: "no-store" });
     return await res.json();
   } catch (e) {
-    return []; // no products saved yet
+    return [];
   }
 }
 
@@ -26,13 +21,16 @@ async function saveProducts(products) {
 }
 
 export default async function handler(req, res) {
+  // Prevent caching
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+
   if (req.method === "GET") {
     const products = await getProducts();
     return res.status(200).json(products);
   }
 
-  // Everything below this line changes the catalog, so it requires the
-  // admin password.
   const providedPassword = req.headers["x-admin-password"];
   if (!providedPassword || providedPassword !== process.env.ADMIN_PASSWORD) {
     return res.status(401).json({ error: "Incorrect admin password" });
@@ -40,14 +38,16 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     if (req.body && req.body.__check) {
-      return res.status(200).json({ ok: true }); // password check only, no product created
+      return res.status(200).json({ ok: true });
     }
+
     const products = await getProducts();
     const newProduct = {
       id: `osw-${Date.now()}`,
       name: req.body.name,
       category: req.body.category,
       price: Number(req.body.price),
+      currency: req.body.currency || "USD",
       description: req.body.description || "",
       image: req.body.image || null,
       createdAt: new Date().toISOString(),
