@@ -1,7 +1,4 @@
-// This runs on Vercel's server, not in the browser — it's the only place
-// allowed to touch the secret key. The secret key lives in Vercel's
-// environment variables (Settings -> Environment Variables), never in this
-// file and never sent to the browser.
+// api/create-checkout-session.js
 
 import Stripe from "stripe";
 
@@ -20,11 +17,11 @@ export default async function handler(req, res) {
 
     const line_items = items.map((item) => ({
       price_data: {
-        currency: "usd",
+        currency: (item.currency || "usd").toLowerCase(),
         product_data: {
-          name: `${item.name} (Size ${item.size})`,
+          name: `${item.name} (Size ${item.size}${item.color ? `, ${item.color}` : ""})`,
         },
-        unit_amount: Math.round(item.price * 100), // Stripe uses cents
+        unit_amount: Math.round(Number(item.price) * 100),
       },
       quantity: item.qty,
     }));
@@ -37,14 +34,18 @@ export default async function handler(req, res) {
       line_items,
       customer_email: customerEmail || undefined,
       shipping_address_collection: {
-        allowed_countries: [
-          "US", "CA", "GB", "NG", "AU", "DE", "FR", "IE", "NL", "ZA",
-        ],
+        allowed_countries: ["US", "CA", "GB", "NG", "AU", "DE", "FR", "IE", "NL", "ZA"],
       },
       success_url: `${origin}/?order=success`,
       cancel_url: `${origin}/?order=cancelled`,
     });
 
+    res.status(200).json({ url: session.url });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}
     res.status(200).json({ url: session.url });
   } catch (err) {
     console.error(err);
