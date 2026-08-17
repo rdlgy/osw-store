@@ -175,8 +175,8 @@ function Header({ cartCount, onCartClick, onNav }) {
 
 function Hero({ onShop }) {
   return (
-    <section className="relative bg-black text-white px-4 sm:px-5 pt-16 sm:pt-20 pb-16 sm:pb-24 overflow-hidden">
-      <div className="max-w-4xl mx-auto text-center relative">
+    <section className="relative bg-black text-white px-4 sm:px-5 min-h-[85vh] sm:min-h-[80vh] flex items-center justify-center overflow-hidden">
+      <div className="max-w-4xl mx-auto text-center relative py-16">
         <p className="text-[10px] sm:text-xs tracking-[0.25em] sm:tracking-[0.3em] text-neutral-500 font-mono uppercase mb-5 sm:mb-6">
           Luxury streetwear / est. season one
         </p>
@@ -187,13 +187,13 @@ function Hero({ onShop }) {
           Outside World
         </h1>
 
-        <div className="flex justify-center my-6 sm:my-8 relative">
-          <div className="relative w-36 h-20 sm:w-44 sm:h-24 flex items-center justify-center">
+        <div className="flex justify-center my-8 sm:my-10 relative">
+          <div className="relative w-40 h-22 sm:w-48 sm:h-28 flex items-center justify-center">
             <OrbitArc className="absolute inset-0 w-full h-full text-neutral-500" animate={true} />
             <img
               src="/osw-logo.png"
               alt="OSW Logo"
-              className="relative z-10 w-24 sm:w-28 h-auto object-contain"
+              className="relative z-10 w-28 sm:w-32 h-auto object-contain"
             />
           </div>
         </div>
@@ -203,7 +203,7 @@ function Hero({ onShop }) {
         </p>
         <button
           onClick={onShop}
-          className="mt-8 sm:mt-10 inline-flex items-center gap-2 bg-white text-black px-6 sm:px-7 py-3.5 text-sm tracking-widest uppercase font-medium hover:bg-neutral-200 transition-colors"
+          className="mt-10 sm:mt-12 inline-flex items-center gap-2 bg-white text-black px-7 sm:px-8 py-3.5 text-sm tracking-widest uppercase font-medium hover:bg-neutral-200 transition-colors"
         >
           Enter the shop <ArrowRight size={16} />
         </button>
@@ -918,16 +918,8 @@ export default function OutsideWorldStore() {
       />
 
       {view === "home" && (
-        <>
-          <Hero onShop={() => handleNav("shop")} />
-          <CategoryBar active={activeCategory} onChange={setActiveCategory} />
-          {loading ? (
-            <div className="text-center py-20 text-neutral-500 text-sm">Loading products...</div>
-          ) : (
-            <ShopGrid products={products} activeCategory={activeCategory} onOpen={setModalProduct} />
-          )}
-        </>
-      )}
+  <Hero onShop={() => handleNav("shop")} />
+)}
 
       {view === "shop" && (
         <>
